@@ -126,8 +126,47 @@ Goal ∀ x xs, head @ (cons @ x @ xs) = δ: ret x.
 Qed.
 
 
-Goal ∀ x xs, tail @ (tail @ (cons @ x @ (cons @ x @ xs))) = δ: xs.
+Goal ∀ x xs, tail @ (tail @ (cons @ x @ (cons @ x @ xs))) = δ: δ: xs.
   move=> x xs.
   rewrite /bits /tail /cons.
   by crush.
+Qed.
+
+
+Definition zeroes : ⟪ bits ⟫ :=
+  fix: xs; cons @ ff @ θ: xs.
+
+Lemma head_zeroes : head @ zeroes = δ: ret: ff.
+  rewrite /head /zeroes /cons loeb_unfold.
+  by crush.
+Qed.
+
+Lemma tail_cons : ∀ x xs, tail @ (cons @ x @ xs) = δ: xs.
+  move=> x xs.
+  rewrite /tail /cons /bits.
+  by crush.
+Qed.
+
+Lemma tail_zeroes : tail @ zeroes = δ: δ: zeroes.
+  rewrite /zeroes.
+  rewrite {1} loeb_unfold.
+  by rewrite tail_cons.
+Qed.
+
+Lemma tail_strict : ∀ xs, (tail @ δ: xs) = δ: tail @ xs.
+  move=> xs.
+  rewrite /tail /bits.
+  by crush.
+Qed.
+
+Lemma head_strict : ∀ xs, (head @ δ: xs) = δ: head @ xs.
+  move=> xs.
+  rewrite /head /bits.
+  by crush.
+Qed.
+
+Goal head @ (tail @ (tail @ zeroes)) = δ: δ: δ: δ: δ: ret ff.
+  do 2 rewrite tail_zeroes ? tail_strict.
+  rewrite ? head_strict.
+  by rewrite head_zeroes.
 Qed.

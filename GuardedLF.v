@@ -30,6 +30,10 @@ Notation "▷ A" := (later A) (at level 60).
 Axiom next : ∀ {A}, A → ▷ A.
 Notation "next: x" := (next x) (at level 100).
 
+Axiom loeb : ∀ {A}, (▷ A → A) → A.
+Notation "fix: x ; e" := (loeb (λ x, e)) (at level 100).
+Axiom loeb_unfold : ∀ {A f}, @loeb A f = f (next (loeb f)).
+
 Module Later.
   Axiom from_eq : ∀ {A} (a b : A), ▷ (a = b) → next a = next b.
   Axiom to_eq : ∀ {A} (a b : A), next a = next b → ▷ (a = b).
