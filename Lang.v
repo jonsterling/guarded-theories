@@ -5,108 +5,129 @@ Require Import GuardedLF.
 recursive types; every type is made to be an algebra for the later
 modality. *)
 
-Axiom tp : ◻.
-Axiom tm : tp → Type.
+Axiom mode : ◻.
+Axiom pos : mode.
+Axiom neg : mode.
+
+Axiom tp : mode → ◻.
+Axiom tm : tp pos → Type.
+
+Axiom bool : tp pos.
+Axiom arr : tp pos → tp neg → tp neg.
+Axiom prod : ∀ {μ}, tp μ → tp μ → tp μ.
+Axiom rec : (tp neg → tp neg) → tp neg.
+Axiom F : tp pos → tp neg.
+Axiom U : tp neg → tp pos.
 
 Notation "[ A ]" := (tm A).
+Notation "⟪ A ⟫" := [ U A ].
 
-Axiom bool : tp.
-Axiom arr : tp → tp → tp.
-Axiom prod : tp → tp → tp.
-Axiom rec : (tp → tp) → tp.
+Axiom bind : ∀ {A B}, [U (F A)] → ([A] → [U B]) → [U B].
+Axiom ret : ∀ {A}, [A] → [U (F A)].
+Notation "ret: e" := (ret e) (at level 100).
 
 Infix "⇒" := arr (right associativity, at level 60).
-Infix "×" := prod (right associativity, at level 60).
+Infix "&" := (@prod neg) (right associativity, at level 60).
+Infix "⊗" := (@prod pos) (right associativity, at level 60).
 Notation "rec: X ; B" := (rec (λ X, B)) (at level 100).
 
-Axiom θ : ∀ {A}, ▷ [A] → [A].
-Definition δ {A} (e : [A]) : [A] := θ (next e).
+Axiom θ : ∀ {A}, ▷ [U A] → [U A].
+Definition δ {A} (e : [U A]) : [U A] := θ (next e).
 
 Notation "θ: e" := (θ e) (at level 100).
 Notation "δ: e" := (δ e) (at level 100).
 Notation "θ[ A ]" := (@θ A).
 Notation "δ[ A ]" := (@δ A).
 
-Axiom def_arr : ∀ {A B}, ([A] → [B]) ≅ [A ⇒ B].
-Axiom def_prod : ∀ {A B : tp}, (product [A] [B]) ≅ [A × B].
-Axiom def_rec : ∀ {F}, ▷ [F (rec F)] ≅ [rec F].
+Axiom def_arr : ∀ {A B}, ([A] → [U B]) ≅ [U (A ⇒ B)].
+Axiom def_prod_neg : ∀ {A B}, (product ⟪A⟫ ⟪B⟫) ≅ ⟪ A & B ⟫.
+Axiom def_prod_pos : ∀ {A B}, (product [A] [B]) ≅ [A ⊗ B].
+Axiom def_rec : ∀ {H}, ▷ [U (H (rec H))] ≅ [U (rec H)].
 
 Notation lam := (intro def_arr).
 Notation app := (elim def_arr).
 Notation "lam: x ; e" := (lam (λ x, e)) (at level 100).
-Infix "@" := app (at level 60).
+Infix "@" := app (left associativity, at level 50).
 
 Notation fold := (intro def_rec).
 Notation unfold := (elim def_rec).
 Notation "fold: e" := (fold e) (at level 100).
 Notation "unfold: e" := (unfold e) (at level 100).
 
-Notation pair := (intro def_prod).
-Notation split := (elim def_prod).
-Notation "⟨ e , e' ⟩" := (pair (Build_product e  e')).
-Notation "fst: e" := (π1 (split e)) (at level 100).
-Notation "snd: e" := (π2 (split e)) (at level 100).
+Notation "pair-" := (intro def_prod_neg).
+Notation "split-" := (elim def_prod_neg).
+Notation "⟨ e , e' ⟩-" := (pair- (Build_product e  e')).
+Notation "fst-: e" := (π1 (split- e)) (at level 100).
+Notation "snd-: e" := (π2 (split- e)) (at level 100).
 
-Definition θ_arr_rhs {A B} (e : ▷ [A ⇒ B]) : [A ⇒ B] :=
+Notation "pair+" := (intro def_prod_pos).
+Notation "split+" := (elim def_prod_pos).
+Notation "⟨ e , e' ⟩+" := (pair+ (Build_product e  e')).
+Notation "fst+: e" := (π1 (split+ e)) (at level 100).
+Notation "snd+: e" := (π2 (split+ e)) (at level 100).
+
+
+Notation "bind: x ← e ; k" := (bind e (λ x, k)) (at level 100).
+
+Definition θ_arr_rhs {A B} (e : ▷ [U (A ⇒ B)]) : [U (A ⇒ B)] :=
   lam: x;
   θ: (λ f, f @ x) <$> e.
 
-Definition θ_prod_rhs {A B} (e : ▷ [A × B]) : [A × B] :=
-  ⟨ θ: (λ x, fst: x) <$> e, θ: (λ x, snd: x) <$> e ⟩.
+Definition θ_prod_rhs {A B} (e : ▷ [U (A & B)]) : [U (A & B)] :=
+  ⟨ θ: (λ x, fst-: x) <$> e, θ: (λ x, snd-: x) <$> e ⟩-.
 
-Definition θ_rec_rhs {F} (e : ▷ [rec F]) : [rec F] :=
+Definition θ_rec_rhs {H} (e : ▷ [U (rec H)]) : [U (rec H)] :=
   fold: (θ ∘ unfold) <$> e.
 
+Axiom bind_ret : ∀ {A B} {x : [A]} {k : [A] → [U B]}, bind (ret x) k = k x.
+Axiom θ_bind : ∀ {A B x k}, bind (θ[F A] x) k = θ[B] ((λ z, bind z k) <$> x).
 Axiom θ_arr : ∀ {A B}, θ[A ⇒ B] = θ_arr_rhs.
-Axiom θ_prod : ∀ {A B}, θ[A × B] = θ_prod_rhs.
+Axiom θ_prod : ∀ {A B}, θ[A & B] = θ_prod_rhs.
 Axiom θ_rec : ∀ {F}, θ[rec F] = θ_rec_rhs.
-
 
 Axiom tt : [bool].
 Axiom ff : [bool].
-Axiom case : ∀ {A}, [bool] → [A] → [A] → [A].
+Axiom case : ∀ {A}, [bool] → [U A] → [U A] → [U A].
 
 Notation "case: b 'with' 'tt' ⇒ t | 'ff' ⇒ f 'end'" := (case b t f) (at level 100).
 Notation "case[ A ]: b 'with' 'tt' ⇒ t | 'ff' ⇒ f 'end'" := (@case A b t f) (at level 100).
 
-Axiom case_δ : ∀ {A} b t f, case[A]: (δ b) with tt ⇒ t | ff ⇒ f end = δ: case b t f.
 Axiom case_tt : ∀ {A} t f, case[A]: tt with tt ⇒ t | ff ⇒ f end = t.
 Axiom case_ff : ∀ {A} t f, case[A]: tt with tt ⇒ t | ff ⇒ f end = f.
 
+Definition bits := rec: X; F (bool ⊗ U X).
+Definition cons : ⟪ bool ⇒ U bits ⇒ bits ⟫ :=
+  lam: x; lam: xs;
+  fold: next: ret: ⟨x,xs⟩+.
 
-Definition fixpoint {A} : [A ⇒ A] → [A] :=
-  let w := λ h : [(rec: X; X ⇒ A) ⇒ A], h @ fold: next: lam: x; h @ x in
-  λ f, w (lam: x; f @ w (lam: y; (θ: unfold x) @ y)).
+Definition head : ⟪ U bits ⇒ F bool ⟫ :=
+  lam: xs;
+  bind: u ← θ: unfold: xs;
+  ret: fst+: u.
 
-Notation "fix: X ; F" := (fixpoint (lam (λ X, F))) (at level 100).
+Definition tail : ⟪ U bits ⇒ bits ⟫ :=
+  lam: xs;
+  bind: u ← θ: unfold: xs;
+  snd+: u.
 
-Definition bits := rec: X; bool × X.
-Definition head : [bits ⇒ bool] := lam: xs; fst: θ: unfold: xs.
-Definition tail : [bits ⇒ bits] := lam: xs; snd: θ: unfold: xs.
+Ltac crush :=
+  repeat
+    (autorewrite with crush;
+     autounfold with crush;
+     simpl).
 
-Definition ones : [bits] := fix: xs; fold: next: ⟨ tt, xs ⟩.
+Hint Unfold θ_prod_rhs θ_rec_rhs θ_arr_rhs Later.map δ : crush.
+Hint Rewrite @beta @θ_prod @θ_arr @θ_rec @Later.ap_compute @bind_ret @θ_bind : crush.
 
-Definition bot {A} : [A] := fix: x; x.
-
-Goal 0 ⊩ δ tt = bot.
-  move=> boom; compute.
-  rewrite ? beta θ_arr beta /Later.map Later.ap_compute.
-  f_equal; apply: Later.from_eq.
-  move: boom; by apply: Later.map.
+Goal ∀ x xs, head @ (cons @ x @ xs) = δ: ret x.
+  move=> x xs.
+  rewrite /head /cons.
+  by crush.
 Qed.
 
-Goal case: δ: δ: tt with tt ⇒ ff | ff ⇒ tt end = δ: δ: ff.
-  by rewrite ? case_δ case_tt.
+
+Goal ∀ x xs, tail @ (tail @ (cons @ x @ (cons @ x @ xs))) = δ: xs.
+  move=> x xs.
+  rewrite /bits /tail /cons.
+  by crush.
 Qed.
-
-(* Every type defines a "functor of points". We would presumably be
-   gluing along the functor A |-> Nv A. *)
-Definition Nv A :=
-  λ n,
-  n ⊩ [A].
-
-Definition Nv_action {A} : ∀ m n, m ≤ n → Nv A n → Nv A m.
-  move=> m n mn a z.
-  apply: a.
-  apply: boom_leq; eauto.
-Defined.
