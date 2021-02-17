@@ -1,7 +1,7 @@
 Require Import Unicode.Utf8 ssreflect.
 Require Import GuardedLF.
 
-(* This is a relatively simple theory of typed λ-calculus with
+(* This is a relatively simple theory of typed CBPV λ-calculus with
 recursive types; every type is made to be an algebra for the later
 modality. *)
 
