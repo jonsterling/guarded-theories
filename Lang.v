@@ -1,6 +1,10 @@
 Require Import Unicode.Utf8 ssreflect.
 Require Import GuardedLF.
 
+(* This is a relatively simple theory of typed λ-calculus with
+recursive types; every type is made to be an algebra for the later
+modality. *)
+
 Axiom tp : ◻.
 Axiom tm : tp → Type.
 
@@ -59,3 +63,16 @@ Goal 0 ⊩ δ tt = bot.
   f_equal; apply: Later.from_eq.
   move: boom; by apply: Later.map.
 Qed.
+
+
+(* Every type defines a "functor of points". We would presumably be
+   gluing along the functor A |-> Nv A. *)
+Definition Nv A :=
+  λ n,
+  n ⊩ [A].
+
+Definition Nv_action {A} : ∀ m n, m ≤ n → Nv A n → Nv A m.
+  move=> m n mn a z.
+  apply: a.
+  apply: boom_leq; eauto.
+Defined.

@@ -1,4 +1,5 @@
 Require Import Unicode.Utf8 ssreflect.
+Require Import micromega.Lia.
 
 Set Primitive Projections.
 
@@ -48,3 +49,26 @@ Fixpoint boom n :=
     end.
 
 Notation "n ⊩ P" := (boom n → P) (at level 100).
+
+
+Lemma boom_suc : ∀ n, boom n → boom (S n).
+Proof.
+  move=> n.
+  apply: next.
+Qed.
+
+Lemma boom_leq : ∀ m n, m ≤ n → boom m → boom n.
+Proof.
+  move=> m; elim.
+  - move=> ?.
+    replace m with 0; auto.
+    lia.
+  - move=> n ih p z.
+    suff: sum (m = S n) (m ≤ n).
+    + case.
+      * by move=> <-.
+      * move=> ?.
+        apply: next.
+        by apply: ih.
+    + admit.
+Admitted.
