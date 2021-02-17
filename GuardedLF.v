@@ -12,6 +12,14 @@ Record iso (A B : Type) :=
 Arguments intro [_] [_] _.
 Arguments elim [_] [_] _.
 
+Record product (A B : Type) :=
+  {π1 : A;
+   π2 : B}.
+
+Arguments Build_product [_] [_] _ _.
+Arguments π1 [_] [_] _.
+Arguments π2 [_] [_] _.
+
 Infix "≅" := iso (at level 100).
 Notation "◻" := Type.
 Notation "f ∘ g" := (λ x, f (g x)) (at level 10).
