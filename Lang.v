@@ -16,7 +16,7 @@ Axiom arr : tp → tp → tp.
 Axiom rec : (tp → tp) → tp.
 
 Infix "⇒" := arr (right associativity, at level 60).
-Notation "rec: X ; B" := (rec (fun X => B)) (at level 100).
+Notation "rec: X ; B" := (rec (λ X, B)) (at level 100).
 
 Axiom tt : [bool].
 Axiom ff : [bool].
@@ -33,27 +33,25 @@ Notation "fold: e" := (fold e) (at level 100).
 Notation "unfold: e" := (unfold e) (at level 100).
 Notation "θ: e" := (θ e) (at level 100).
 Notation "θ[ A ]" := (@θ A).
-Notation "lam: x ; e" := (lam (fun x => e)) (at level 100).
+Notation "lam: x ; e" := (lam (λ x, e)) (at level 100).
 Infix "@" := app (at level 60).
 
 Definition δ {A} : [A] → [A] :=
-  fun e => θ (next e).
+  θ ∘ next.
 
-Definition θ_arr_rhs {A B} : ▷ [A ⇒ B] → [A ⇒ B] :=
-  fun e =>
+Definition θ_arr_rhs {A B} (e : ▷ [A ⇒ B]) : [A ⇒ B] :=
   lam: x;
-  θ: (fun f => f @ x) <$> e.
+  θ: (λ f, f @ x) <$> e.
 
-Definition θ_rec_rhs {F} : ▷ [rec F] → [rec F] :=
-  fun e =>
+Definition θ_rec_rhs {F} (e : ▷ [rec F]) : [rec F] :=
   fold: (θ ∘ unfold) <$> e.
 
 Axiom θ_arr : ∀ {A B}, θ[A ⇒ B] = θ_arr_rhs.
 Axiom θ_rec : ∀ {F}, θ[rec F] = θ_rec_rhs.
 
 Definition fixpoint {A} : [A ⇒ A] → [A] :=
-  let w := fun h : [(rec: X; X ⇒ A) ⇒ A] => h @ fold: next: lam: x; h @ x in
-  fun f => w (lam: x; f @ w (lam: y; (θ: unfold x) @ y)).
+  let w := λ h : [(rec: X; X ⇒ A) ⇒ A], h @ fold: next: lam: x; h @ x in
+  λ f, w (lam: x; f @ w (lam: y; (θ: unfold x) @ y)).
 
 Definition bot {A} : [A] := fixpoint (lam: x; x).
 
