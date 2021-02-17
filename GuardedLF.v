@@ -64,11 +64,10 @@ Proof.
     replace m with 0; auto.
     lia.
   - move=> n ih p z.
-    suff: sum (m = S n) (m ≤ n).
-    + case.
-      * by move=> <-.
-      * move=> ?.
-        apply: next.
-        by apply: ih.
-    + admit.
-Admitted.
+    compare m (S n).
+    + by move=> <- .
+    + move=> q.
+      apply: next.
+      apply: ih; last by auto.
+      lia.
+Defined.
