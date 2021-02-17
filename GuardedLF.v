@@ -61,13 +61,12 @@ Lemma boom_leq : ∀ m n, m ≤ n → boom m → boom n.
 Proof.
   move=> m; elim.
   - move=> ?.
-    replace m with 0; auto.
-    lia.
+    replace m with 0; first by auto.
+    by lia.
   - move=> n ih p z.
     compare m (S n).
     + by move=> <- .
     + move=> q.
-      apply: next.
-      apply: ih; last by auto.
-      lia.
+      apply: next; apply: ih; last by auto.
+      by lia.
 Defined.
