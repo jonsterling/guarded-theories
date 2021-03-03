@@ -1,5 +1,6 @@
 Require Import Unicode.Utf8 ssreflect.
 Require Import GuardedLF.
+Require Import Logic.FunctionalExtensionality.
 
 (* This is a relatively simple theory of typed CBPV λ-calculus with
 recursive types; every type is made to be an algebra for the later
@@ -13,8 +14,10 @@ Axiom tp : mode → ◻.
 Axiom tm : tp pos → Type.
 
 Axiom bool : tp pos.
+Axiom one : tp pos.
 Axiom arr : tp pos → tp neg → tp neg.
 Axiom prod : ∀ {μ}, tp μ → tp μ → tp μ.
+Axiom coprod : tp pos → tp pos → tp pos.
 Axiom rec : (tp neg → tp neg) → tp neg.
 Axiom F : tp pos → tp neg.
 Axiom U : tp neg → tp pos.
@@ -29,9 +32,10 @@ Notation "ret: e" := (ret e) (at level 100).
 Infix "⇒" := arr (right associativity, at level 60).
 Infix "&" := (@prod neg) (right associativity, at level 60).
 Infix "⊗" := (@prod pos) (right associativity, at level 60).
+Infix "⊕" := coprod (right associativity, at level 60).
 Notation "rec: X ; B" := (rec (λ X, B)) (at level 100).
 
-Axiom θ : ∀ {A}, ▷ [U A] → [U A].
+Axiom θ : ∀ {A}, ▶ [U A] → [U A].
 Definition δ {A} (e : [U A]) : [U A] := θ (next e).
 
 Notation "θ: e" := (θ e) (at level 100).
@@ -42,7 +46,9 @@ Notation "δ[ A ]" := (@δ A).
 Axiom def_arr : ∀ {A B}, ([A] → [U B]) ≅ [U (A ⇒ B)].
 Axiom def_prod_neg : ∀ {A B}, (product ⟪A⟫ ⟪B⟫) ≅ ⟪ A & B ⟫.
 Axiom def_prod_pos : ∀ {A B}, (product [A] [B]) ≅ [A ⊗ B].
-Axiom def_rec : ∀ {H}, ▷ [U (H (rec H))] ≅ [U (rec H)].
+Axiom def_coprod : ∀ {A B}, (sum [A] [B]) ≅ [A ⊕ B].
+Axiom def_rec : ∀ {H}, ▶ [U (H (rec H))] ≅ [U (rec H)].
+Axiom def_one : True ≅ [one].
 
 Notation lam := (intro def_arr).
 Notation app := (elim def_arr).
@@ -69,14 +75,14 @@ Notation "snd+: e" := (π2 (split+ e)) (at level 100).
 
 Notation "bind: x ← e ; k" := (bind e (λ x, k)) (at level 100).
 
-Definition θ_arr_rhs {A B} (e : ▷ [U (A ⇒ B)]) : [U (A ⇒ B)] :=
+Definition θ_arr_rhs {A B} (e : ▶ [U (A ⇒ B)]) : [U (A ⇒ B)] :=
   lam: x;
   θ: (λ f, f @ x) <$> e.
 
-Definition θ_prod_rhs {A B} (e : ▷ [U (A & B)]) : [U (A & B)] :=
+Definition θ_prod_rhs {A B} (e : ▶ [U (A & B)]) : [U (A & B)] :=
   ⟨ θ: (λ x, fst-: x) <$> e, θ: (λ x, snd-: x) <$> e ⟩-.
 
-Definition θ_rec_rhs {H} (e : ▷ [U (rec H)]) : [U (rec H)] :=
+Definition θ_rec_rhs {H} (e : ▶ [U (rec H)]) : [U (rec H)] :=
   fold: (θ ∘ unfold) <$> e.
 
 Axiom bind_ret : ∀ {A B} {x : [A]} {k : [A] → [U B]}, bind (ret x) k = k x.
@@ -169,4 +175,69 @@ Goal head @ (tail @ (tail @ zeroes)) = δ: δ: δ: δ: δ: ret ff.
   do 2 rewrite tail_zeroes ? tail_strict.
   rewrite ? head_strict.
   by rewrite head_zeroes.
+Qed.
+
+
+Definition bot {A} : ⟪ A ⟫ := fix: x; θ: x.
+
+Goal 1 ⊩ (δ: δ: ret: tt) = bot.
+  move=> z.
+  rewrite /bot loeb_unfold -/bot /δ.
+  f_equal.
+  apply: Later.from_eq; move: z.
+  apply: Later.pmap => z.
+  rewrite /bot loeb_unfold -/bot /δ.
+  f_equal.
+  apply: Later.from_eq; move: z.
+  by apply: Later.pmap.
+Qed.
+
+Fixpoint rep {A} (n : nat) (f : A → A) (x : A) : A :=
+  match n with
+  | 0 => x
+  | S n => f (rep n f x)
+  end.
+
+Definition conat : tp neg := rec: X; F (one ⊕ U X).
+
+Notation ax := (intro def_one I).
+
+Definition ze : ⟪conat⟫ :=
+  fold: next: ret: intro def_coprod (inl ax).
+
+Definition su (n : ⟪conat⟫) : ⟪conat⟫ :=
+  fold: next: ret: intro def_coprod (inr n).
+
+
+
+Inductive wp_F {A : tp pos} (Φ : [A] → Prop) (H : ⟪F A⟫ → Prop) : ⟪F A⟫ → Prop :=
+| wp_ret : ∀ e v, e = ret v → Φ v → wp_F Φ H e
+| wp_step : ∀ e e', (e = δ: e') → H e' → wp_F Φ H e.
+
+
+(* Weakest precondition *)
+Definition wp {A : tp pos} (Φ : [A] → Prop) : ⟪F A⟫ → Prop :=
+  fix: wp'; wp_F Φ (λ e, ⟨▷⟩ (wp' ⊛ next: e)).
+
+
+Lemma wp_unfold {A : tp pos} {Φ : [A] → Prop} {e : ⟪F A⟫} : wp Φ e = wp_F Φ (fun e => ▷ (wp Φ e)) e.
+Proof.
+  rewrite /wp {1} loeb_unfold /Later.map.
+  do ? f_equal; extensionality e'; f_equal.
+  by rewrite Later.ap_compute Later.dlater_compute.
+Qed.
+
+Goal wp (λ v, v = tt) (head @ (cons @ tt @ zeroes)).
+  rewrite wp_unfold; apply: wp_step.
+  - by rewrite /head /cons; crush.
+  - apply: pnext.
+    rewrite wp_unfold.
+    by apply: wp_ret.
+Qed.
+
+(* Only partial correctness ;-) *)
+Goal wp (λ v, v = tt) bot.
+  apply: ploeb => L.
+  rewrite wp_unfold; apply: wp_step; eauto.
+  by rewrite /bot {1} loeb_unfold.
 Qed.
